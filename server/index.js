@@ -1,21 +1,12 @@
 const express = require('express');
-const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// Bind to localhost only — the API is reached through the Nginx reverse
+// proxy (/api), never directly from the internet.
+const HOST = process.env.HOST || '127.0.0.1';
 
 app.use(express.json());
-
-// CORS — allow the static site (served by Nginx) to call this API.
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  next();
-});
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -34,6 +25,6 @@ app.get('/api/info', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`API server running on http://0.0.0.0:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`API server running on http://${HOST}:${PORT}`);
 });

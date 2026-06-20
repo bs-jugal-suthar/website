@@ -1,6 +1,7 @@
+// Empty API_URL → call the API at the same origin (/api), which Nginx
+// reverse-proxies to the Node server. No port, no CORS, HTTPS-ready.
 const API_URL =
-  (window.APP_CONFIG && window.APP_CONFIG.API_URL) ||
-  `http://${window.location.hostname}:3000`;
+  (window.APP_CONFIG && window.APP_CONFIG.API_URL) || '';
 
 async function pingServer() {
   const el = document.getElementById('status');
