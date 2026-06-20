@@ -162,22 +162,69 @@ This is exactly how thousands of websites run on shared hosting — **one server
 
 ---
 
-## Deployment Steps
+## Deployment Steps (Ubuntu)
 
-### 1. Install Nginx on EC2
+> These steps target **Ubuntu** EC2 (default SSH user `ubuntu`). Ubuntu uses
+> `apt` and the `sites-available` / `sites-enabled` layout. The instance also
+> ships a stock "default" site that **must be removed**, or you get a
+> `duplicate default server` error and the nginx welcome page.
+
+### 1. Install Node.js + Nginx
 
 ```bash
-sudo yum install -y nginx
+sudo apt update
+sudo apt install -y nginx
+
+# Node.js 20 (NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 ```
 
-### 2. Copy website files
+### 2. Get the code onto the server
+
+```bash
+cd ~
+git clone https://github.com/jugalsuthar4/website.git basic-application
+# (or: scp -i your-key.pem -r ~/.../basic-application ubuntu@<EC2-IP>:~/)
+```
+
+### 3. Run the Node API as a service
+
+The API must keep running after you log out, so run it under systemd:
+
+```bash
+cd ~/basic-application/server
+npm install --omit=dev
+
+sudo tee /etc/systemd/system/basic-api.service > /dev/null <<'EOF'
+[Unit]
+Description=Basic Application API
+After=network.target
+
+[Service]
+WorkingDirectory=/home/ubuntu/basic-application/server
+ExecStart=/usr/bin/node index.js
+Environment=PORT=3000
+Restart=always
+User=ubuntu
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now basic-api
+curl http://localhost:3000/api/health   # should return JSON
+```
+
+### 4. Copy website files
 
 ```bash
 sudo mkdir -p /var/www/basic-application
 sudo cp -r ~/basic-application/website /var/www/basic-application/
 ```
 
-### 2b. Generate the runtime config (API URL)
+### 4b. Generate the runtime config (API URL)
 
 `app.js` reads the API URL from `window.APP_CONFIG.API_URL` (set in `config.js`).
 Generate `config.js` from the template with the environment's API URL:
@@ -185,31 +232,62 @@ Generate `config.js` from the template with the environment's API URL:
 ```bash
 cd /var/www/basic-application/website
 export API_URL=http://<EC2-IP>:3000
-envsubst < config.js.template > config.js
+sudo -E bash -c 'envsubst < config.js.template > config.js'
 ```
 
 Leave `API_URL` empty (or skip this step) to fall back to
 `http://<current-host>:3000` automatically.
 
-### 3. Place the Nginx config
+### 5. Place the Nginx config and remove the default site
 
 ```bash
-sudo cp ~/basic-application/nginx.conf /etc/nginx/conf.d/basic-application.conf
+# Enable our site
+sudo cp ~/basic-application/nginx.conf /etc/nginx/sites-available/basic-application
+sudo ln -sf /etc/nginx/sites-available/basic-application /etc/nginx/sites-enabled/
+
+# Remove the stock default site (prevents "duplicate default server")
+sudo rm -f /etc/nginx/sites-enabled/default
 ```
 
-### 4. Start Nginx
+> `rm` only deletes the **symlink** in `sites-enabled` — the original stays in
+> `/etc/nginx/sites-available/default`, so it's reversible. Keep `nginx.conf`
+> as `listen 80; server_name _;` (do **not** add `default_server`); removing
+> the default site already clears the conflict.
 
-```bash
-sudo systemctl start nginx
-sudo systemctl enable nginx   # auto-start on reboot
-```
-
-### 5. Verify config before restarting
+### 6. Test and start Nginx
 
 ```bash
 sudo nginx -t                 # test config for errors
-sudo systemctl reload nginx   # apply changes without downtime
+sudo systemctl reload nginx   # apply without downtime
+sudo systemctl enable nginx   # auto-start on reboot
 ```
+
+---
+
+## Troubleshooting
+
+**You see the "Welcome to nginx!" page instead of your site.**
+The stock default site is still active. Confirm and fix:
+
+```bash
+ls -l /etc/nginx/sites-enabled/        # should NOT list "default"
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**`nginx -t` reports `duplicate default server for 0.0.0.0:80`.**
+Two server blocks claim `default_server`. Remove the default site (above) and
+make sure your `nginx.conf` does **not** also set `default_server`.
+
+**Site loads but the Ping button says "Server unreachable".**
+The Node API isn't running or port 3000 is closed. Check:
+
+```bash
+sudo systemctl status basic-api
+curl http://localhost:3000/api/health
+```
+
+Also confirm port 3000 is open in the EC2 security group.
 
 ---
 
