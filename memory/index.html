@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Match — Mini Game</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --card: #334155;
+      --card-face: #f8fafc;
+      --accent: #38bdf8;
+      --accent-2: #7dd3fc;
+      --matched: #22c55e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      padding: 1rem;
+    }
+
+    h1 { margin: 0; font-size: 1.8rem; letter-spacing: 0.5px; }
+    h1 span { color: var(--accent); }
+
+    .scoreboard {
+      display: flex;
+      gap: 2rem;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+    .scoreboard b { color: var(--text); font-size: 1.2rem; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      perspective: 1000px;
+    }
+
+    .card {
+      width: 80px;
+      height: 80px;
+      position: relative;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.4s;
+      border-radius: 10px;
+    }
+    .card.flipped, .card.matched { transform: rotateY(180deg); }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      backface-visibility: hidden;
+      font-size: 2rem;
+      user-select: none;
+    }
+
+    .back {
+      background: linear-gradient(135deg, var(--card), #475569);
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+    }
+    .back::after { content: "?"; color: var(--muted); font-size: 1.6rem; font-weight: 700; }
+
+    .front {
+      background: var(--card-face);
+      transform: rotateY(180deg);
+    }
+    .card.matched .front {
+      background: #dcfce7;
+      box-shadow: inset 0 0 0 2px var(--matched);
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #082f49;
+      background: var(--accent);
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+    button:hover { background: var(--accent-2); }
+    button:active { transform: translateY(1px); }
+
+    .win {
+      color: var(--matched);
+      font-weight: 600;
+      min-height: 1.2rem;
+    }
+
+    .hint { color: var(--muted); font-size: 0.85rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>🧠 <span>Memory Match</span></h1>
+
+  <div class="scoreboard">
+    <div>Moves: <b id="moves">0</b></div>
+    <div>Pairs: <b id="pairs">0</b>/8</div>
+    <div>Best: <b id="best">—</b></div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <p class="win" id="win"></p>
+  <button id="restart">New Game</button>
+
+  <p class="hint">Flip two cards — match all 8 pairs in as few moves as possible.</p>
+
+  <script>
+    const SYMBOLS = ['🍎', '🚀', '🐙', '🎸', '🌵', '⚡', '🍔', '🎲'];
+
+    const boardEl = document.getElementById('board');
+    const movesEl = document.getElementById('moves');
+    const pairsEl = document.getElementById('pairs');
+    const bestEl = document.getElementById('best');
+    const winEl = document.getElementById('win');
+    const restartBtn = document.getElementById('restart');
+
+    let firstCard, secondCard, lock, moves, pairs;
+
+    let best = localStorage.getItem('memory-best');
+    bestEl.textContent = best ? best : '—';
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function newGame() {
+      boardEl.innerHTML = '';
+      firstCard = secondCard = null;
+      lock = false;
+      moves = 0;
+      pairs = 0;
+      movesEl.textContent = 0;
+      pairsEl.textContent = 0;
+      winEl.textContent = '';
+
+      const deck = shuffle([...SYMBOLS, ...SYMBOLS]);
+
+      deck.forEach((symbol) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.symbol = symbol;
+        card.innerHTML = `
+          <div class="face back"></div>
+          <div class="face front">${symbol}</div>
+        `;
+        card.addEventListener('click', () => flip(card));
+        boardEl.appendChild(card);
+      });
+    }
+
+    function flip(card) {
+      if (lock || card === firstCard) return;
+      if (card.classList.contains('matched')) return;
+
+      card.classList.add('flipped');
+
+      if (!firstCard) {
+        firstCard = card;
+        return;
+      }
+
+      secondCard = card;
+      moves++;
+      movesEl.textContent = moves;
+      checkMatch();
+    }
+
+    function checkMatch() {
+      const isMatch = firstCard.dataset.symbol === secondCard.dataset.symbol;
+      if (isMatch) {
+        firstCard.classList.add('matched');
+        secondCard.classList.add('matched');
+        resetTurn();
+        pairs++;
+        pairsEl.textContent = pairs;
+        if (pairs === SYMBOLS.length) win();
+      } else {
+        lock = true;
+        setTimeout(() => {
+          firstCard.classList.remove('flipped');
+          secondCard.classList.remove('flipped');
+          resetTurn();
+        }, 800);
+      }
+    }
+
+    function resetTurn() {
+      [firstCard, secondCard] = [null, null];
+      lock = false;
+    }
+
+    function win() {
+      let msg = `🎉 Solved in ${moves} moves!`;
+      if (!best || moves < Number(best)) {
+        best = moves;
+        localStorage.setItem('memory-best', best);
+        bestEl.textContent = best;
+        msg += ' New best!';
+      }
+      winEl.textContent = msg;
+    }
+
+    restartBtn.addEventListener('click', newGame);
+    newGame();
+  </script>
+</body>
+</html>
