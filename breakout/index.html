@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breakout — Mini Game</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --accent: #f59e0b;
+      --accent-2: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      padding: 1rem;
+    }
+
+    h1 { margin: 0; font-size: 1.8rem; letter-spacing: 0.5px; }
+    h1 span { color: var(--accent); }
+
+    .scoreboard {
+      display: flex;
+      gap: 2rem;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+    .scoreboard b { color: var(--text); font-size: 1.2rem; }
+
+    .stage { position: relative; }
+
+    canvas {
+      background: var(--panel);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      touch-action: none;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 12px;
+      text-align: center;
+      padding: 1rem;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h2 { margin: 0; font-size: 1.5rem; }
+    .overlay p { margin: 0; color: var(--muted); }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #451a03;
+      background: var(--accent);
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+    button:hover { background: var(--accent-2); }
+    button:active { transform: translateY(1px); }
+
+    .hint { color: var(--muted); font-size: 0.85rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>🧱 <span>Breakout</span></h1>
+
+  <div class="scoreboard">
+    <div>Score: <b id="score">0</b></div>
+    <div>Lives: <b id="lives">3</b></div>
+    <div>Best: <b id="best">0</b></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="board" width="480" height="360"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="overlay-title">Breakout</h2>
+      <p id="overlay-text">Move the paddle, break all the bricks.</p>
+      <button id="start-btn">Play</button>
+    </div>
+  </div>
+
+  <p class="hint">Move: mouse or ← → keys · don't let the ball fall</p>
+
+  <script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const bestEl = document.getElementById('best');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayText = document.getElementById('overlay-text');
+    const startBtn = document.getElementById('start-btn');
+
+    // Bricks
+    const ROWS = 5, COLS = 8;
+    const BRICK_W = 52, BRICK_H = 18, GAP = 6;
+    const OFFSET_TOP = 40, OFFSET_LEFT = 16;
+    const COLORS = ['#f43f5e', '#f59e0b', '#facc15', '#4ade80', '#38bdf8'];
+
+    const paddle = { w: 80, h: 12, x: (W - 80) / 2 };
+    let ball, bricks, score, lives, running, raf;
+
+    let best = Number(localStorage.getItem('breakout-best') || 0);
+    bestEl.textContent = best;
+
+    function resetBall() {
+      ball = { x: W / 2, y: H - 40, dx: 3 * (Math.random() < 0.5 ? 1 : -1), dy: -3, r: 7 };
+      paddle.x = (W - paddle.w) / 2;
+    }
+
+    function buildBricks() {
+      bricks = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          bricks.push({
+            x: OFFSET_LEFT + c * (BRICK_W + GAP),
+            y: OFFSET_TOP + r * (BRICK_H + GAP),
+            color: COLORS[r % COLORS.length],
+            alive: true,
+          });
+        }
+      }
+    }
+
+    function newGame() {
+      score = 0;
+      lives = 3;
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      buildBricks();
+      resetBall();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      // bricks
+      bricks.forEach(b => {
+        if (!b.alive) return;
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, BRICK_W, BRICK_H);
+      });
+
+      // paddle
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(paddle.x, H - paddle.h - 8, paddle.w, paddle.h);
+
+      // ball
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+    }
+
+    function update() {
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+
+      // wall bounces
+      if (ball.x - ball.r < 0 || ball.x + ball.r > W) ball.dx *= -1;
+      if (ball.y - ball.r < 0) ball.dy *= -1;
+
+      // paddle bounce
+      const py = H - paddle.h - 8;
+      if (
+        ball.y + ball.r >= py &&
+        ball.y + ball.r <= py + paddle.h + 6 &&
+        ball.x >= paddle.x && ball.x <= paddle.x + paddle.w &&
+        ball.dy > 0
+      ) {
+        ball.dy *= -1;
+        // angle depends on where it hits the paddle
+        const hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+        ball.dx = hit * 4;
+      }
+
+      // brick collisions
+      bricks.forEach(b => {
+        if (!b.alive) return;
+        if (
+          ball.x + ball.r > b.x && ball.x - ball.r < b.x + BRICK_W &&
+          ball.y + ball.r > b.y && ball.y - ball.r < b.y + BRICK_H
+        ) {
+          b.alive = false;
+          ball.dy *= -1;
+          score += 10;
+          scoreEl.textContent = score;
+        }
+      });
+
+      // win
+      if (bricks.every(b => !b.alive)) return endGame(true);
+
+      // ball fell
+      if (ball.y - ball.r > H) {
+        lives--;
+        livesEl.textContent = lives;
+        if (lives <= 0) return endGame(false);
+        resetBall();
+      }
+    }
+
+    function tick() {
+      if (!running) return;
+      update();
+      if (!running) return;  // endGame may have stopped us
+      draw();
+      raf = requestAnimationFrame(tick);
+    }
+
+    function start() {
+      newGame();
+      running = true;
+      overlay.classList.add('hidden');
+      tick();
+    }
+
+    function endGame(won) {
+      running = false;
+      cancelAnimationFrame(raf);
+      if (score > best) {
+        best = score;
+        localStorage.setItem('breakout-best', best);
+        bestEl.textContent = best;
+      }
+      overlayTitle.textContent = won ? '🎉 You Win!' : 'Game Over';
+      overlayText.textContent = `Score: ${score}.` + (score >= best ? ' New best!' : '');
+      startBtn.textContent = 'Play again';
+      overlay.classList.remove('hidden');
+    }
+
+    // controls — mouse
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      paddle.x = Math.max(0, Math.min(W - paddle.w, x - paddle.w / 2));
+    });
+
+    // controls — touch
+    canvas.addEventListener('touchmove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.touches[0].clientX - rect.left;
+      paddle.x = Math.max(0, Math.min(W - paddle.w, x - paddle.w / 2));
+    }, { passive: true });
+
+    // controls — keyboard
+    const keys = {};
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') keys.left = true;
+      if (e.key === 'ArrowRight') keys.right = true;
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft') keys.left = false;
+      if (e.key === 'ArrowRight') keys.right = false;
+    });
+    setInterval(() => {
+      if (!running) return;
+      if (keys.left) paddle.x = Math.max(0, paddle.x - 7);
+      if (keys.right) paddle.x = Math.min(W - paddle.w, paddle.x + 7);
+    }, 16);
+
+    startBtn.addEventListener('click', start);
+
+    // initial render
+    newGame();
+    draw();
+  </script>
+</body>
+</html>
