@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Hello from EC2</h1>
+    <p>Static website served by Nginx</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Server Status</h2>
+      <p id="status">Checking...</p>
+      <button onclick="pingServer()">Ping Server</button>
+    </section>
+
+    <section class="card">
+      <h2>About</h2>
+      <p>This page is served by Nginx and talks to a separate Express API on port 3000.</p>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
