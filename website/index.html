@@ -3,29 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My App</title>
+  <title>Game Hub</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>Hello from EC2</h1>
-    <p>Static website served by Nginx</p>
+    <h1>Game Hub</h1>
+    <p>Pick a game and play — all served from EC2</p>
   </header>
 
   <main>
-    <section class="card">
-      <h2>Server Status</h2>
-      <p id="status">Checking...</p>
-      <button onclick="pingServer()">Ping Server</button>
-    </section>
+    <a href="/game/" class="card">
+      <div class="icon">🐍</div>
+      <h2>Snake</h2>
+      <p>Classic snake — eat, grow, don't hit the walls. Arrow keys or WASD.</p>
+    </a>
 
-    <section class="card">
-      <h2>About</h2>
-      <p>This page is served by Nginx and talks to a separate Express API on port 3000.</p>
-    </section>
+    <a href="/memory/" class="card">
+      <div class="icon">🧠</div>
+      <h2>Memory Match</h2>
+      <p>Flip cards, find pairs. Solve it in as few moves as you can.</p>
+    </a>
+
+    <a href="/breakout/" class="card">
+      <div class="icon">🧱</div>
+      <h2>Breakout</h2>
+      <p>Smash bricks with a bouncing ball. Mouse or arrow keys to move the paddle.</p>
+    </a>
   </main>
 
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <footer>
+    <p>Nginx + Node.js + PM2 on Ubuntu EC2</p>
+  </footer>
+
 </body>
 </html>

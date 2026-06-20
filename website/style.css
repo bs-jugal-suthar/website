@@ -5,72 +5,96 @@
 }
 
 body {
-  font-family: sans-serif;
-  background: #f0f4f8;
-  color: #333;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 header {
-  background: #232f3e;
-  color: white;
-  padding: 2rem;
   text-align: center;
+  padding: 2.5rem 1rem 1.5rem;
 }
 
 header h1 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
+  font-size: 2.2rem;
+  margin-bottom: 0.4rem;
 }
 
 header p {
-  color: #aab;
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+.status {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.35rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+.status.ok {
+  background: #052e16;
+  color: #4ade80;
+}
+
+.status.fail {
+  background: #450a0a;
+  color: #f87171;
 }
 
 main {
+  flex: 1;
   display: flex;
   gap: 1.5rem;
-  padding: 2rem;
+  padding: 1.5rem;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: flex-start;
 }
 
 .card {
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  width: 300px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
+  width: 260px;
+  text-decoration: none;
+  color: #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-align: center;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
 }
 
 .card h2 {
-  margin-bottom: 1rem;
-  color: #232f3e;
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
 }
 
 .card p {
-  margin-bottom: 1rem;
-  line-height: 1.6;
-}
-
-button {
-  background: #ff9900;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  cursor: pointer;
+  color: #94a3b8;
   font-size: 0.9rem;
-  padding: 0.5rem 1.2rem;
+  line-height: 1.5;
 }
 
-button:hover {
-  background: #e68900;
+footer {
+  text-align: center;
+  padding: 1.5rem;
+  color: #475569;
+  font-size: 0.8rem;
 }
-
-#status {
-  font-weight: bold;
-  color: #888;
-}
-
-#status.ok   { color: #2a9d2a; }
-#status.fail { color: #c0392b; }
